@@ -104,3 +104,8 @@ float Motor::GetCurrent()
 {
   return current;
 }
+
+float Motor::GetCurrentRef()
+{
+  return current_ref;
+}

@@ -3,24 +3,27 @@
 #include <chrono>
 #include <math.h>
 #include <stdio.h>
+#include <iostream>
 #include <sys/stat.h>
 
 #include "master_board_sdk/master_board_interface.h"
 #include "master_board_sdk/defines.h"
 
-#define N_SLAVES_CONTROLED 1
+#define N_SLAVES_CONTROLED 4
 
 int main(int argc, char **argv)
 {
 	int cpt = 0;
+	int cpt_enabled = 0;
 	double dt = 0.001;
 	double t = 0;
-	double kp = 5.;
-	double kd = 0.1;
+	double kp = 1.;
+	double kd = 0.01;
 	double iq_sat = 4.0;
 	double freq = 0.5;
 	double amplitude = M_PI;
 	double init_pos[N_SLAVES * 2] = {0};
+	int disable_counter[N_SLAVES * 2] = {0};
 	int state = 0;
 	nice(-20); //give the process a high priority
 	printf("-- Main --\n");
@@ -51,6 +54,7 @@ int main(int argc, char **argv)
 			{
 			case 0: //check the end of calibration (are the all controlled motor enabled and ready?)
 				state = 1;
+				// cpt = 0;
 				for (int i = 0; i < N_SLAVES_CONTROLED * 2; i++)
 				{
 					if (!(robot_if.motors[i].IsEnabled() && robot_if.motors[i].IsReady()))
@@ -63,12 +67,13 @@ int main(int argc, char **argv)
 				break;
 			case 1:
 				//closed loop, position
+				cpt_enabled += 1;
 				for (int i = 0; i < N_SLAVES_CONTROLED * 2; i++)
 				{
 					if (robot_if.motors[i].IsEnabled())
 					{
-						double ref = init_pos[i] + amplitude * sin(2 * M_PI * freq * t);
-						double v_ref = 2. * M_PI * freq * amplitude * cos(2 * M_PI * freq * t);
+						double ref = init_pos[i]; // + amplitude * sin(2 * M_PI * freq * t);
+						double v_ref = 0.; // 2. * M_PI * freq * amplitude * cos(2 * M_PI * freq * t);
 						double p_err = ref - robot_if.motors[i].GetPosition();
 						double v_err = v_ref - robot_if.motors[i].GetVelocity();
 						double cur = kp * p_err + kd * v_err;
@@ -78,16 +83,24 @@ int main(int argc, char **argv)
 							cur = -iq_sat;
 						robot_if.motors[i].SetCurrentReference(cur);
 					}
+					else {
+						disable_counter[i] += 1;
+					}
 				}
 				break;
 			}
-			if (cpt % 100 == 0)
+			if (cpt % 5000 == 0)
 			{
 				printf("\33[H\33[2J"); //clear screen
 				robot_if.PrintIMU();
 				robot_if.PrintADC();
 				robot_if.PrintMotors();
 				robot_if.PrintMotorDrivers();
+				for (int i = 0; i < N_SLAVES_CONTROLED * 2; i++)
+				{
+					printf("%0.3f ", float(disable_counter[i]) / cpt_enabled);
+				}
+				printf("\n");
 				fflush(stdout);
 			}
 			robot_if.SendCommand(); //This will send the command packet

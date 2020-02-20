@@ -26,6 +26,7 @@ public:
   float GetVelocity();
   float GetCurrent();
   float GetPositionOffset();
+  float GetCurrentRef();
 
   //state
   float position;       // [rad]
@@ -90,7 +91,7 @@ public:
   bool get_enable_index_toggle_bit() { return this->enable_index_toggle_bit; };
   bool get_enable_index_offset_compensation() { return this->enable_index_offset_compensation; };
   MotorDriver* get_driver() { return (this->driver); }; // driver is a pointer but in Python we will use the object itself
-  
+
 };
 
 #endif

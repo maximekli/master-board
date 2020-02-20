@@ -28,7 +28,7 @@ public:
 	void PrintMotorDrivers();							 //Print motor drivers data on stdout. Usefull for debug.  void PrintMotors(); //Print Motors data on stdout. Usefull for debug.
 	void ResetTimeout();  // Reset the interface after at timeout to send packets again
 	bool IsTimeout();     // Check if a timeout has been triggered because the master board did not respond
-	
+
   	uint16_t nb_recv = 0; //todo make private
 private:
 	void callback(uint8_t src_mac[6], uint8_t *data, int len);
