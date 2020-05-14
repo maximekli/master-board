@@ -100,6 +100,8 @@ void set_all_leds(uint32_t rgb)
 
 static void periodic_timer_callback(void *arg)
 {
+    static int max_count = 0;
+
     // handling state change
     if (current_state != next_state)
     {
@@ -109,7 +111,7 @@ static void periodic_timer_callback(void *arg)
         {
         case SPI_AUTODETECT:
             //reset spi stats and count for checking connected slaves
-            spi_connected = 0;
+            spi_connected = 0b11111111;
             memset(spi_ok, 0, CONFIG_N_SLAVES * sizeof(long int));
             spi_count = 0;
 
@@ -131,6 +133,8 @@ static void periodic_timer_callback(void *arg)
             // reset variables for packet loss feedback
             wifi_eth_tx_data.sensor_index = 0;
             wifi_eth_tx_data.packet_loss = 0;
+
+            max_count = 0;
             break;
 
         default:
@@ -146,6 +150,8 @@ static void periodic_timer_callback(void *arg)
     }
 
     ms_cpt++;
+    max_count = wifi_eth_count > max_count ? wifi_eth_count : max_count;
+    if (ms_cpt % 500 == 0) printf("max_count = %d\n", max_count);
 
     /* LEDs */
     bool blink = (ms_cpt % 1000) > 500;
@@ -279,8 +285,10 @@ static void periodic_timer_callback(void *arg)
                     // Wait for it to be finished
                 }
 
+                //if (ms_cpt % 500 == 0) printf("%d %d\n", spi_try, i);
+
                 // checking if data is correct
-                if (packet_check_CRC(spi_rx_packet[i]))
+                if (true && packet_check_CRC(spi_rx_packet[i]))
                 {
                     spi_connected |= (1 << i); // noting that this slave is connected and working properly
 
