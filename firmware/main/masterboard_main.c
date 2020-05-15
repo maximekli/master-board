@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 
+#include "driver/uart.h"
 #include "driver/gpio.h"
 
 #include "esp_timer.h"
@@ -15,7 +16,7 @@
 #include "spi_manager.h"
 #include "spi_quad_packet.h"
 #include "quad_crc.h"
-#include "uart_imu.h"
+//#include "uart_imu.h"
 #include "ws2812_led_control.h"
 
 #include "defines.h"
@@ -323,7 +324,7 @@ static void periodic_timer_callback(void *arg)
     }
 
     /* Get IMU latest data*/
-    parse_IMU_data();
+    /*parse_IMU_data();
     wifi_eth_tx_data.imu.accelerometer[0] = get_acc_x_in_D16QN();
     wifi_eth_tx_data.imu.accelerometer[1] = get_acc_y_in_D16QN();
     wifi_eth_tx_data.imu.accelerometer[2] = get_acc_z_in_D16QN();
@@ -338,7 +339,7 @@ static void periodic_timer_callback(void *arg)
 
     wifi_eth_tx_data.imu.linear_acceleration[0] = get_linacc_x_in_D16QN();
     wifi_eth_tx_data.imu.linear_acceleration[1] = get_linacc_y_in_D16QN();
-    wifi_eth_tx_data.imu.linear_acceleration[2] = get_linacc_z_in_D16QN();
+    wifi_eth_tx_data.imu.linear_acceleration[2] = get_linacc_z_in_D16QN();*/
 
     /* Sends message to PC */
     switch (current_state)
@@ -497,8 +498,8 @@ void app_main()
     printf("SPI size %u\n", SPI_TOTAL_LEN * 2);
     setup_spi();
 
-    printf("initialise IMU\n");
-    imu_init();
+    /*printf("initialise IMU\n");
+    imu_init();*/
 
     if (useWIFI)
     {
