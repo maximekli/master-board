@@ -21,7 +21,7 @@
 
 #include "defines.h"
 
-#define useWIFI false
+#define useWIFI true
 
 #define ENABLE_DEBUG_PRINTF false
 

@@ -71,7 +71,7 @@ int MasterBoardInterface::Init()
   {
     /*WiFi*/
     printf("Using WiFi (%s)\n", if_name_.c_str());
-    link_handler_ = new ESPNOW_manager(if_name_, DATARATE_24Mbps, CHANNEL_freq_9, my_mac_, dest_mac_, false); //TODO write setter for espnow specific parametters
+    link_handler_ = new ESPNOW_manager(if_name_, DATARATE_24Mbps, CHANNEL_freq_14, my_mac_, dest_mac_, false); //TODO write setter for espnow specific parametters
     link_handler_->set_recv_callback(this);
     link_handler_->start();
     ((ESPNOW_manager *)link_handler_)->bind_filter();
