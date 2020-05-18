@@ -10,6 +10,8 @@
 #include "driver/gpio.h"
 #include "esp_intr_alloc.h"
 
+#include "soc/uart_periph.h"
+
 int imu_init();
 int parse_IMU_data();
 void print_imu();
