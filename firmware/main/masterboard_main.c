@@ -288,7 +288,7 @@ static void periodic_timer_callback(void *arg)
                 //if (ms_cpt % 500 == 0) printf("%d %d\n", spi_try, i);
 
                 // checking if data is correct
-                if (true && packet_check_CRC(spi_rx_packet[i]))
+                if (packet_check_CRC(spi_rx_packet[i]))
                 {
                     spi_connected |= (1 << i); // noting that this slave is connected and working properly
 
