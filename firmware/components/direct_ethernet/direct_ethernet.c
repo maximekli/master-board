@@ -112,11 +112,17 @@ esp_err_t eth_send_frame(eth_frame *p_frame)
 
 void eth_send_data(uint8_t *data, int len)
 {
+#if ENABLE_DEBUG_GPIO_ETH_SEND
+  gpio_set_level(GPIO_ETH_SEND, 1);
+#endif
   eth_frame frame;
   eth_init_frame(&frame);
   frame.data_len = len;
   memcpy(&(frame.data), data, len);
   eth_send_frame(&(frame));
+#if ENABLE_DEBUG_GPIO_ETH_SEND
+  gpio_set_level(GPIO_ETH_SEND, 0);
+#endif
 }
 
 void eth_detach_recv_cb()
@@ -141,6 +147,10 @@ void eth_attach_link_state_cb(void (*cb)(bool link_state))
 
 void eth_init()
 {
+#if ENABLE_DEBUG_GPIO_ETH_SEND
+  gpio_set_direction(GPIO_ETH_SEND, GPIO_MODE_OUTPUT);
+#endif
+
   ESP_ERROR_CHECK(esp_event_loop_create_default());
   ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID, &eth_event_handler, NULL));
 

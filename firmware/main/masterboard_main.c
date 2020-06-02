@@ -24,6 +24,21 @@
 
 #define ENABLE_DEBUG_PRINTF false
 
+#define ENABLE_DEBUG_GPIO_TIMER_CB false
+#if ENABLE_DEBUG_GPIO_TIMER_CB
+#define GPIO_TIMER_CB 33
+#endif
+
+#define ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB false
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+#define GPIO_WIFI_ETH_RECEIVE_CB 36
+#endif
+
+#define ENABLE_DEBUG_GPIO_SPI_TRANS false
+#if ENABLE_DEBUG_GPIO_SPI_TRANS
+#define GPIO_SPI_TRANS 36
+#endif
+
 #define SPI_AUTODETECT_MAX_COUNT 50 // number of spi transaction for which the master board will try to detect spi slaves
 
 #define RGB(r, g, b) ((uint8_t)(g) << 16 | (uint8_t)(r) << 8 | (uint8_t)(b))
@@ -102,6 +117,10 @@ int max_count = 0;
 
 static void periodic_timer_callback(void *arg)
 {
+#if ENABLE_DEBUG_GPIO_TIMER_CB
+    gpio_set_level(GPIO_TIMER_CB, 1);
+#endif
+
     // handling state change
     if (current_state != next_state)
     {
@@ -146,6 +165,9 @@ static void periodic_timer_callback(void *arg)
 
     if (current_state == SETUP)
     {
+#if ENABLE_DEBUG_GPIO_TIMER_CB
+        gpio_set_level(GPIO_TIMER_CB, 0);
+#endif
         return;
     }
 
@@ -255,6 +277,10 @@ static void periodic_timer_callback(void *arg)
 
     /* Complete and send each packet */
 
+#if ENABLE_DEBUG_GPIO_SPI_TRANS
+    gpio_set_level(GPIO_SPI_TRANS, 1);
+#endif
+
     // send and receive packets to/from every slave
     for (int i = 0; i < CONFIG_N_SLAVES; i++)
     {
@@ -331,6 +357,10 @@ static void periodic_timer_callback(void *arg)
         }
     }
 
+#if ENABLE_DEBUG_GPIO_SPI_TRANS
+    gpio_set_level(GPIO_SPI_TRANS, 0);
+#endif
+
     /* Get IMU latest data*/
     parse_IMU_data();
     wifi_eth_tx_data.imu.accelerometer[0] = get_acc_x_in_D16QN();
@@ -389,6 +419,10 @@ static void periodic_timer_callback(void *arg)
         // we send nothing to PC in case of a state machine error (should never happen)
         break;
     }
+
+#if ENABLE_DEBUG_GPIO_TIMER_CB
+    gpio_set_level(GPIO_TIMER_CB, 0);
+#endif
 }
 
 void setup_spi()
@@ -428,6 +462,10 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
     static uint64_t min_delta_time = -1;
     static uint64_t max_delta_time = 0;
 
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 1);
+#endif
+
     // received an init msg while waiting for one
     if (len == sizeof(struct wifi_eth_packet_init) && (current_state == WAITING_FOR_INIT || current_state == WIFI_ETH_ERROR))
     {
@@ -436,6 +474,9 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
         if (packet_recv->protocol_version != PROTOCOL_VERSION)
         {
             //printf("Wrong protocol version, got %d instead of %d, ignoring init packet\n", packet_recv->protocol_version, PROTOCOL_VERSION);
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+            gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 0);
+#endif
             return; // ignoring packet
         }
 
@@ -469,6 +510,9 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
         if (packet_recv->session_id != session_id)
         {
             //printf("Wrong session id, got %d instead of %d, ignoring packet\n", packet_recv->session_id, session_id);
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+            gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 0);
+#endif
             return; // ignoring packet
         }
 
@@ -557,6 +601,10 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
         // reset count for communication timeout
         wifi_eth_count = 0;
     }
+
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 0);
+#endif
 }
 
 //function that will be called on a link state change
@@ -574,6 +622,19 @@ void app_main()
     set_all_leds(0x0f0f0f);
 
     ws2812_write_leds(ws_led);
+
+#if ENABLE_DEBUG_GPIO_TIMER_CB
+    gpio_set_direction(GPIO_TIMER_CB, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_TIMER_CB, 0);
+#endif
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+    gpio_set_direction(GPIO_WIFI_ETH_RECEIVE_CB, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 0);
+#endif
+#if ENABLE_DEBUG_GPIO_SPI_TRANS
+    gpio_set_direction(GPIO_SPI_TRANS, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_SPI_TRANS, 0);
+#endif
 
     //printf("The core is : %d\n",xPortGetCoreID());
     printf("ETH/WIFI init size %u\n", sizeof(struct wifi_eth_packet_init));
