@@ -14,6 +14,12 @@
 
 #include "sdkconfig.h"
 
+#define ENABLE_DEBUG_GPIO_ETH_SEND false
+#if ENABLE_DEBUG_GPIO_ETH_SEND
+#include "driver/gpio.h"
+#define GPIO_ETH_SEND 36
+#endif
+
 #define ETHERTYPE 0xb588
 
 typedef struct {
