@@ -24,19 +24,19 @@
 
 #define ENABLE_DEBUG_PRINTF false
 
-#define ENABLE_DEBUG_GPIO_TIMER_CB false
+#define ENABLE_DEBUG_GPIO_TIMER_CB true
 #if ENABLE_DEBUG_GPIO_TIMER_CB
 #define GPIO_TIMER_CB 33
 #endif
 
-#define ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB false
+#define ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB true
 #if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
-#define GPIO_WIFI_ETH_RECEIVE_CB 36
+#define GPIO_WIFI_ETH_RECEIVE_CB 2
 #endif
 
 #define ENABLE_DEBUG_GPIO_SPI_TRANS false
 #if ENABLE_DEBUG_GPIO_SPI_TRANS
-#define GPIO_SPI_TRANS 36
+#define GPIO_SPI_TRANS 2
 #endif
 
 #define SPI_AUTODETECT_MAX_COUNT 50 // number of spi transaction for which the master board will try to detect spi slaves
@@ -443,7 +443,7 @@ void setup_spi()
     ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
     ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, 1000));
 
-    gpio_set_direction(CONFIG_BUTTON_GPIO, GPIO_MODE_INPUT);
+    //gpio_set_direction(CONFIG_BUTTON_GPIO, GPIO_MODE_INPUT);
 }
 
 void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
@@ -618,10 +618,10 @@ void app_main()
     uart_set_baudrate(UART_NUM_0, 2000000);
     nvs_flash_init();
 
-    ws2812_control_init(); //init the LEDs
+    //ws2812_control_init(); //init the LEDs
     set_all_leds(0x0f0f0f);
 
-    ws2812_write_leds(ws_led);
+    //ws2812_write_leds(ws_led);
 
 #if ENABLE_DEBUG_GPIO_TIMER_CB
     gpio_set_direction(GPIO_TIMER_CB, GPIO_MODE_OUTPUT);
@@ -667,6 +667,6 @@ void app_main()
     while (1)
     {
         vTaskDelay(1);
-        ws2812_write_leds(ws_led);
+        //ws2812_write_leds(ws_led);
     }
 }
