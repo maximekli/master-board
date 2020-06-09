@@ -36,7 +36,12 @@
 
 #define ENABLE_DEBUG_GPIO_SPI_TRANS false
 #if ENABLE_DEBUG_GPIO_SPI_TRANS
-#define GPIO_SPI_TRANS 2
+#define GPIO_SPI_TRANS 33
+#endif
+
+#define ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED false
+#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
+#define GPIO_SPI_WHILE_NOT_FINISHED 33
 #endif
 
 #define SPI_AUTODETECT_MAX_COUNT 50 // number of spi transaction for which the master board will try to detect spi slaves
@@ -131,6 +136,7 @@ static void periodic_timer_callback(void *arg)
         case SPI_AUTODETECT:
             //reset spi stats and count for checking connected slaves
             spi_connected = 0b11111111;
+            //spi_connected = 0;
             memset(spi_ok, 0, CONFIG_N_SLAVES * sizeof(long int));
             spi_count = 0;
 
@@ -173,7 +179,8 @@ static void periodic_timer_callback(void *arg)
 
     ms_cpt++;
     max_count = wifi_eth_count > max_count ? wifi_eth_count : max_count;
-    if (ms_cpt % 500 == 0) printf("max_count = %d\n", max_count);
+    /*if (ms_cpt % 500 == 0)
+        printf("max_count = %d\n", max_count);*/
 
     /* LEDs */
     bool blink = (ms_cpt % 1000) > 500;
@@ -306,10 +313,16 @@ static void periodic_timer_callback(void *arg)
             else
             {
                 // waiting for transaction to finish
+#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
+                gpio_set_level(GPIO_SPI_WHILE_NOT_FINISHED, 1);
+#endif
                 while (!spi_is_finished(&(p_trans[i])))
                 {
                     // Wait for it to be finished
                 }
+#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
+                gpio_set_level(GPIO_SPI_WHILE_NOT_FINISHED, 0);
+#endif
 
                 //if (ms_cpt % 500 == 0) printf("%d %d\n", spi_try, i);
 
@@ -447,9 +460,12 @@ void setup_spi()
 
 void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
 {
-#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
-    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 1);
-#endif
+/*#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+    //gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 1);
+    static bool flag = 0;
+    flag = 1 - flag;
+    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, flag);
+#endif*/
 
     // received an init msg while waiting for one
     if (len == sizeof(struct wifi_eth_packet_init) && (current_state == WAITING_FOR_INIT || current_state == WIFI_ETH_ERROR))
@@ -459,9 +475,9 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
         if (packet_recv->protocol_version != PROTOCOL_VERSION)
         {
             //printf("Wrong protocol version, got %d instead of %d, ignoring init packet\n", packet_recv->protocol_version, PROTOCOL_VERSION);
-#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+/*#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
             gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 0);
-#endif
+#endif*/
             return; // ignoring packet
         }
 
@@ -475,6 +491,12 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
     // received a command msg while waiting for one
     else if (len == sizeof(struct wifi_eth_packet_command) && (current_state == SENDING_INIT_ACK || current_state == ACTIVE_CONTROL))
     {
+#if ENABLE_DEBUG_GPIO_WIFI_ETH_RECEIVE_CB
+    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, 1);
+    /*static bool flag = 0;
+    flag = 1 - flag;
+    gpio_set_level(GPIO_WIFI_ETH_RECEIVE_CB, flag);*/
+#endif
         struct wifi_eth_packet_command *packet_recv = (struct wifi_eth_packet_command *)data;
 
         if (packet_recv->session_id != session_id)
@@ -556,6 +578,10 @@ void app_main()
 #if ENABLE_DEBUG_GPIO_SPI_TRANS
     gpio_set_direction(GPIO_SPI_TRANS, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_SPI_TRANS, 0);
+#endif
+#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
+    gpio_set_direction(GPIO_SPI_WHILE_NOT_FINISHED, GPIO_MODE_OUTPUT);
+    gpio_set_level(GPIO_SPI_WHILE_NOT_FINISHED, 0);
 #endif
 
     //printf("The core is : %d\n",xPortGetCoreID());

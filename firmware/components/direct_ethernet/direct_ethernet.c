@@ -74,31 +74,46 @@ static esp_err_t eth_event_handler(void *ctx, system_event_t *event)
 
 static esp_err_t eth_recv_func(void *buffer, uint16_t len, void *eb)
 {
-  eth_frame *frame = buffer;
+/*#if ENABLE_DEBUG_GPIO_ETH_RECV_FUNC
+  //gpio_set_level(GPIO_ETH_RECV_FUNC, 1);
+  static bool flag = 0;
+  flag = 1 - flag;
+  gpio_set_level(GPIO_ETH_RECV_FUNC, flag);
+#endif*/
+  eth_frame *frame = (eth_frame *)buffer;
   if (eth_recv_cb == NULL)
   {
-    ESP_LOGW(ETH_TAG, "Ethernet frame received but no callback function is set on received...");
+    //ESP_LOGW(ETH_TAG, "Ethernet frame received but no callback function is set on received...");
   }
   else if (len < sizeof(eth_frame) - CONFIG_MAX_ETH_DATA_LEN)
   {
-    ESP_LOGW(ETH_TAG, "The ethernet frame received is too short : frame length = %dB / minimum length expected (for header) = %dB", len, sizeof(eth_frame) - CONFIG_MAX_ETH_DATA_LEN);
+    //ESP_LOGW(ETH_TAG, "The ethernet frame received is too short : frame length = %dB / minimum length expected (for header) = %dB", len, sizeof(eth_frame) - CONFIG_MAX_ETH_DATA_LEN);
   }
   else if (len > sizeof(eth_frame))
   {
-    ESP_LOGW(ETH_TAG, "The ethernet frame received is too long : frame length = %dB / maximum length = %dB", len, sizeof(eth_frame));
+    //ESP_LOGW(ETH_TAG, "The ethernet frame received is too long : frame length = %dB / maximum length = %dB", len, sizeof(eth_frame));
   }
   else if (frame->ethertype != ETHERTYPE)
   {
-    ESP_LOGW(ETH_TAG, "Unexpected frame ethertype : got %d instead of %d", frame->ethertype, ETHERTYPE);
+    //ESP_LOGW(ETH_TAG, "Unexpected frame ethertype : got %d instead of %d", frame->ethertype, ETHERTYPE);
   }
   else if (frame->data_len > len - sizeof(eth_frame) + CONFIG_MAX_ETH_DATA_LEN)
   {
-    ESP_LOGW(ETH_TAG, "Data longer than available frame length : data length = %d / available frame length = %d", frame->data_len, len - sizeof(eth_frame) + CONFIG_MAX_ETH_DATA_LEN);
+    //ESP_LOGW(ETH_TAG, "Data longer than available frame length : data length = %d / available frame length = %d", frame->data_len, len - sizeof(eth_frame) + CONFIG_MAX_ETH_DATA_LEN);
   }
   else
   {
+#if ENABLE_DEBUG_GPIO_ETH_RECV_FUNC
+    gpio_set_level(GPIO_ETH_RECV_FUNC, 1);
+    /*static bool flag = 0;
+    flag = 1 - flag;
+    gpio_set_level(GPIO_ETH_RECV_FUNC, flag);*/
+#endif
     eth_recv_cb(frame->dst_mac, frame->data, frame->data_len);
   }
+#if ENABLE_DEBUG_GPIO_ETH_RECV_FUNC
+  gpio_set_level(GPIO_ETH_RECV_FUNC, 0);
+#endif
   return ESP_OK;
 }
 
@@ -125,16 +140,19 @@ esp_err_t eth_send_frame(eth_frame *p_frame)
 void eth_send_data(uint8_t *data, int len)
 {
 #if ENABLE_DEBUG_GPIO_ETH_SEND
-  gpio_set_level(GPIO_ETH_SEND, 1);
+  //gpio_set_level(GPIO_ETH_SEND, 1);
+  static bool flag = 0;
+  flag = 1 - flag;
+  gpio_set_level(GPIO_ETH_SEND, flag);
 #endif
   eth_frame frame;
   eth_init_frame(&frame);
   frame.data_len = len;
   memcpy(&(frame.data), data, len);
   eth_send_frame(&(frame));
-#if ENABLE_DEBUG_GPIO_ETH_SEND
+/*#if ENABLE_DEBUG_GPIO_ETH_SEND
   gpio_set_level(GPIO_ETH_SEND, 0);
-#endif
+#endif*/
 }
 
 void eth_detach_recv_cb()
@@ -159,6 +177,13 @@ void eth_attach_link_state_cb(void (*cb)(bool link_state))
 
 void eth_init()
 {
+#if ENABLE_DEBUG_GPIO_ETH_SEND
+  gpio_set_direction(GPIO_ETH_SEND, GPIO_MODE_OUTPUT);
+#endif
+#if ENABLE_DEBUG_GPIO_ETH_RECV_FUNC
+  gpio_set_direction(GPIO_ETH_RECV_FUNC, GPIO_MODE_OUTPUT);
+#endif
+
   ////////////////////////////////////
   //EVENT HANDLER (CALLBACK)
   ////////////////////////////////////
