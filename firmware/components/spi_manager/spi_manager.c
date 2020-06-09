@@ -44,6 +44,14 @@ void spi_post_transfer_callback(spi_transaction_t *trans) {
 }
 
 void spi_init() {
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+    gpio_set_direction(GPIO_SPI_SEND, GPIO_MODE_OUTPUT);
+#endif
+
+#if ENABLE_DEBUG_GPIO_SPI_IS_FINISHED
+    gpio_set_direction(GPIO_SPI_IS_FINISHED, GPIO_MODE_OUTPUT);
+#endif
+
 	config_demux();
 
     spi_bus_config_t buscfg={
@@ -70,13 +78,25 @@ void spi_init() {
 }
 
 spi_transaction_t *spi_send(int slave, uint8_t *tx_data, uint8_t *rx_data, int len) {
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+    gpio_set_level(GPIO_SPI_SEND, 1);
+#endif
 	spi_transaction_t *p_trans = calloc(1, sizeof(spi_transaction_t));
-    if(p_trans == NULL) return NULL;
+    if(p_trans == NULL)
+    {
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+        gpio_set_level(GPIO_SPI_SEND, 0);
+#endif
+        return NULL;
+    }
 
     spi_trans_info *info = malloc(sizeof(spi_trans_info));
     if (info == NULL)
     {
         free(p_trans);
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+        gpio_set_level(GPIO_SPI_SEND, 0);
+#endif
         return NULL;
     }
 
@@ -93,17 +113,29 @@ spi_transaction_t *spi_send(int slave, uint8_t *tx_data, uint8_t *rx_data, int l
     if (err != ESP_OK){
         free(info);
         free(p_trans);
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+        gpio_set_level(GPIO_SPI_SEND, 0);
+#endif
         return NULL;
     }
 
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+    gpio_set_level(GPIO_SPI_SEND, 0);
+#endif
 	return p_trans;
 }
 
 bool spi_is_finished(spi_transaction_t **p_trans) {
+#if ENABLE_DEBUG_GPIO_SPI_IS_FINISHED
+    gpio_set_level(GPIO_SPI_IS_FINISHED, 1);
+#endif
     if( ((spi_trans_info*) (*p_trans)->user)->is_finished ) {
         if((*p_trans)->user != NULL) free((*p_trans)->user);
         free((*p_trans));
         *p_trans = NULL;
+#if ENABLE_DEBUG_GPIO_SPI_IS_FINISHED
+        gpio_set_level(GPIO_SPI_IS_FINISHED, 0);
+#endif
         return true;
     }
     return false;

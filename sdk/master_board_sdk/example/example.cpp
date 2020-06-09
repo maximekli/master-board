@@ -110,7 +110,7 @@ int main(int argc, char **argv)
 				}
 				break;
 			}
-			if (cpt % 100 == 0)
+			/*if (cpt % 100 == 0)
 			{
 				printf("\33[H\33[2J"); //clear screen
 				robot_if.PrintIMU();
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 				fflush(stdout);
 				 
 
-			}
+			}*/
 			robot_if.SendCommand(); //This will send the command packet
 		}
 		else
