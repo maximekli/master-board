@@ -17,7 +17,13 @@
 #define ENABLE_DEBUG_GPIO_ETH_SEND false
 #if ENABLE_DEBUG_GPIO_ETH_SEND
 #include "driver/gpio.h"
-#define GPIO_ETH_SEND 2
+#define GPIO_ETH_SEND 33
+#endif
+
+#define ENABLE_DEBUG_GPIO_ETH_RECV_FUNC false
+#if ENABLE_DEBUG_GPIO_ETH_RECV_FUNC
+#include "driver/gpio.h"
+#define GPIO_ETH_RECV_FUNC 2
 #endif
 
 #define ETHERTYPE 0xb588

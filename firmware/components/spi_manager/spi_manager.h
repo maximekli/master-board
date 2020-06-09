@@ -4,6 +4,18 @@
 #include "driver/spi_master.h"
 #include "spi_quad_packet.h"
 
+#define ENABLE_DEBUG_GPIO_SPI_SEND false
+#if ENABLE_DEBUG_GPIO_SPI_SEND
+#include "driver/gpio.h"
+#define GPIO_SPI_SEND 33
+#endif
+
+#define ENABLE_DEBUG_GPIO_SPI_IS_FINISHED false
+#if ENABLE_DEBUG_GPIO_SPI_IS_FINISHED
+#include "driver/gpio.h"
+#define GPIO_SPI_IS_FINISHED 33
+#endif
+
 #define PIN_NUM_MISO 12
 #define PIN_NUM_MOSI 13
 #define PIN_NUM_CLK  14
