@@ -39,11 +39,6 @@
 #define GPIO_SPI_TRANS 33
 #endif
 
-#define ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED false
-#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
-#define GPIO_SPI_WHILE_NOT_FINISHED 33
-#endif
-
 #define SPI_AUTODETECT_MAX_COUNT 50 // number of spi transaction for which the master board will try to detect spi slaves
 
 #define RGB(r, g, b) ((uint8_t)(g) << 16 | (uint8_t)(r) << 8 | (uint8_t)(b))
@@ -187,7 +182,7 @@ static void periodic_timer_callback(void *arg)
     float fade_blink = (ms_cpt % 1000 < 500) ? (ms_cpt % 1000) / 500.0 : (1000 - (ms_cpt % 1000)) / 500.0;
 
     /* Prepare spi transactions */
-    spi_transaction_t *p_trans[CONFIG_N_SLAVES] = {0};
+    bool spi_done[CONFIG_N_SLAVES] = {0};
     spi_index_trans++;
 
     /* Choose spi packets to send*/
@@ -287,7 +282,7 @@ static void periodic_timer_callback(void *arg)
     gpio_set_level(GPIO_SPI_TRANS, 1);
 #endif
 
-    // send and receive packets to/from every slave
+    // Fills the outgoing spi packet
     for (int i = 0; i < CONFIG_N_SLAVES; i++)
     {
         if (!TEST_BIT(spi_connected, i) && !spi_autodetect)
@@ -295,10 +290,9 @@ static void periodic_timer_callback(void *arg)
 
         SPI_REG_u16(p_tx[i], SPI_TOTAL_INDEX) = SPI_SWAP_DATA_TX(spi_index_trans, 16);
         SPI_REG_u32(p_tx[i], SPI_TOTAL_CRC) = SPI_SWAP_DATA_TX(packet_compute_CRC(p_tx[i]), 32);
-        p_trans[i] = spi_send(i, (uint8_t *)p_tx[i], (uint8_t *)spi_rx_packet[i], SPI_TOTAL_LEN * 2);
     }
 
-    /* Wait for SPI transactions to finish */
+    /* Send every trans the needed number of times */
     for (int spi_try = 0; spi_try < spi_n_attempt; spi_try++)
     {
         for (int i = 0; i < CONFIG_N_SLAVES; i++)
@@ -306,65 +300,47 @@ static void periodic_timer_callback(void *arg)
             if (!TEST_BIT(spi_connected, i) && !spi_autodetect)
                 continue; // ignoring this slave if it is not connected
 
-            if (p_trans[i] == NULL)
-            {
-                // No associated ongoing transaction, either the alloc failed or it does not need to be sent again
-            }
-            else
-            {
-                // waiting for transaction to finish
-#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
-                gpio_set_level(GPIO_SPI_WHILE_NOT_FINISHED, 1);
-#endif
-                while (!spi_is_finished(&(p_trans[i])))
-                {
-                    // Wait for it to be finished
-                }
-#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
-                gpio_set_level(GPIO_SPI_WHILE_NOT_FINISHED, 0);
-#endif
+            if (spi_done[i])
+                continue; // ignoring this slave if the transaction has already been done
+
+            spi_send(i, (uint8_t *)p_tx[i], (uint8_t *)spi_rx_packet[i], SPI_TOTAL_LEN * 2);
 
                 //if (ms_cpt % 500 == 0) printf("%d %d\n", spi_try, i);
 
-                // checking if data is correct
-                if (packet_check_CRC(spi_rx_packet[i]))
+            // checking if data is correct
+            if (packet_check_CRC(spi_rx_packet[i]))
+            {
+                spi_connected |= (1 << i); // noting that this slave is connected and working properly
+                spi_done[i] = true;
+                spi_ok[i]++;
+
+                //for debug:
+                if (ENABLE_DEBUG_PRINTF && spi_count % 1000 == 0 && i == 0)
                 {
-                    spi_connected |= (1 << i); // noting that this slave is connected and working properly
-
-                    spi_ok[i]++;
-
-                    //for debug:
-                    if (ENABLE_DEBUG_PRINTF && spi_count % 1000 == 0 && i == 0)
-                    {
-                        printf("\nlast SENSOR packet:\n");
-                        print_packet(spi_rx_packet[i], SPI_TOTAL_LEN * 2);
-                    }
-
-                    // filling the next sensor msg to PC with data just acquired
-                    wifi_eth_tx_data.sensor[i].status = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_STATUS), 16);
-                    wifi_eth_tx_data.sensor[i].timestamp = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_TIMESTAMP), 16);
-                    wifi_eth_tx_data.sensor[i].position[0] = SPI_SWAP_DATA_RX(SPI_REG_32(spi_rx_packet[i], SPI_SENSOR_POS_1), 32);
-                    wifi_eth_tx_data.sensor[i].position[1] = SPI_SWAP_DATA_RX(SPI_REG_32(spi_rx_packet[i], SPI_SENSOR_POS_2), 32);
-                    wifi_eth_tx_data.sensor[i].velocity[0] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_VEL_1), 16);
-                    wifi_eth_tx_data.sensor[i].velocity[1] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_VEL_2), 16);
-                    wifi_eth_tx_data.sensor[i].current[0] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_IQ_1), 16);
-                    wifi_eth_tx_data.sensor[i].current[1] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_IQ_2), 16);
-                    wifi_eth_tx_data.sensor[i].coil_resistance[0] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_CR_1), 16);
-                    wifi_eth_tx_data.sensor[i].coil_resistance[1] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_CR_2), 16);
-                    wifi_eth_tx_data.sensor[i].adc[0] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_ADC_1), 16);
-                    wifi_eth_tx_data.sensor[i].adc[1] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_ADC_2), 16);
+                    printf("\nlast SENSOR packet:\n");
+                    print_packet(spi_rx_packet[i], SPI_TOTAL_LEN * 2);
                 }
 
-                else
-                {
-                    //transaction failed, try to re-send
-                    if (spi_try + 1 < spi_n_attempt)
-                        p_trans[i] = spi_send(i, (uint8_t *)p_tx[i], (uint8_t *)spi_rx_packet[i], SPI_TOTAL_LEN * 2);
+                // filling the next sensor msg to PC with data just acquired
+                wifi_eth_tx_data.sensor[i].status = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_STATUS), 16);
+                wifi_eth_tx_data.sensor[i].timestamp = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_TIMESTAMP), 16);
+                wifi_eth_tx_data.sensor[i].position[0] = SPI_SWAP_DATA_RX(SPI_REG_32(spi_rx_packet[i], SPI_SENSOR_POS_1), 32);
+                wifi_eth_tx_data.sensor[i].position[1] = SPI_SWAP_DATA_RX(SPI_REG_32(spi_rx_packet[i], SPI_SENSOR_POS_2), 32);
+                wifi_eth_tx_data.sensor[i].velocity[0] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_VEL_1), 16);
+                wifi_eth_tx_data.sensor[i].velocity[1] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_VEL_2), 16);
+                wifi_eth_tx_data.sensor[i].current[0] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_IQ_1), 16);
+                wifi_eth_tx_data.sensor[i].current[1] = SPI_SWAP_DATA_RX(SPI_REG_16(spi_rx_packet[i], SPI_SENSOR_IQ_2), 16);
+                wifi_eth_tx_data.sensor[i].coil_resistance[0] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_CR_1), 16);
+                wifi_eth_tx_data.sensor[i].coil_resistance[1] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_CR_2), 16);
+                wifi_eth_tx_data.sensor[i].adc[0] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_ADC_1), 16);
+                wifi_eth_tx_data.sensor[i].adc[1] = SPI_SWAP_DATA_RX(SPI_REG_u16(spi_rx_packet[i], SPI_SENSOR_ADC_2), 16);
+            }
 
-                    // zeroing sensor data in packet, except the status field
-                    memset(&(wifi_eth_tx_data.sensor[i]), 0, sizeof(struct sensor_data));
-                    wifi_eth_tx_data.sensor[i].status = 0xf; // specifying that the transaction failed in the sensor packet
-                }
+            else
+            {
+                // zeroing sensor data in packet, except the status field
+                memset(&(wifi_eth_tx_data.sensor[i]), 0, sizeof(struct sensor_data));
+                wifi_eth_tx_data.sensor[i].status = 0xf; // specifying that the transaction failed in the sensor packet
             }
         }
     }
@@ -578,10 +554,6 @@ void app_main()
 #if ENABLE_DEBUG_GPIO_SPI_TRANS
     gpio_set_direction(GPIO_SPI_TRANS, GPIO_MODE_OUTPUT);
     gpio_set_level(GPIO_SPI_TRANS, 0);
-#endif
-#if ENABLE_DEBUG_GPIO_SPI_WHILE_NOT_FINISHED
-    gpio_set_direction(GPIO_SPI_WHILE_NOT_FINISHED, GPIO_MODE_OUTPUT);
-    gpio_set_level(GPIO_SPI_WHILE_NOT_FINISHED, 0);
 #endif
 
     //printf("The core is : %d\n",xPortGetCoreID());
