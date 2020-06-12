@@ -98,10 +98,10 @@ void set_all_leds(uint32_t rgb)
     }
 }
 
+int max_count = 0;
+
 static void periodic_timer_callback(void *arg)
 {
-    static int max_count = 0;
-
     // handling state change
     if (current_state != next_state)
     {
@@ -151,7 +151,8 @@ static void periodic_timer_callback(void *arg)
 
     ms_cpt++;
     max_count = wifi_eth_count > max_count ? wifi_eth_count : max_count;
-    if (ms_cpt % 500 == 0) printf("max_count = %d\n", max_count);
+    if (ms_cpt % 2000 == 0)
+        printf("max_count = %d\n", max_count);
 
     /* LEDs */
     bool blink = (ms_cpt % 1000) > 500;
@@ -413,6 +414,20 @@ void setup_spi()
 
 void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
 {
+    static uint16_t n = 0;
+    static int64_t last_time = 0;
+    static int64_t curr_time = 0;
+    static uint64_t delta_time_n = 0;
+
+    static uint64_t sum = 0;
+    static uint64_t sum_sq = 0;
+    static uint64_t mean = 0;
+    static uint64_t variance = 0;
+    static uint64_t std = 0;
+
+    static uint64_t min_delta_time = -1;
+    static uint64_t max_delta_time = 0;
+
     // received an init msg while waiting for one
     if (len == sizeof(struct wifi_eth_packet_init) && (current_state == WAITING_FOR_INIT || current_state == WIFI_ETH_ERROR))
     {
@@ -429,6 +444,21 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
 
         // reset count for communication timeout
         wifi_eth_count = 0;
+
+        n = 0;
+        last_time = 0;
+        curr_time = 0;
+        delta_time_n = 0;
+        sum = 0;
+        sum_sq = 0;
+        mean = 0;
+        variance = 0;
+        std = 0;
+
+        min_delta_time = -1;
+        max_delta_time = 0;
+
+        max_count = 0;
     }
 
     // received a command msg while waiting for one
@@ -440,6 +470,54 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
         {
             //printf("Wrong session id, got %d instead of %d, ignoring packet\n", packet_recv->session_id, session_id);
             return; // ignoring packet
+        }
+
+        curr_time = esp_timer_get_time();
+
+        if (last_time != 0)
+        {
+            n++;
+
+            delta_time_n = curr_time - last_time;
+            sum += delta_time_n;
+            sum_sq += (delta_time_n * delta_time_n);
+
+            min_delta_time = delta_time_n < min_delta_time ? delta_time_n : min_delta_time;
+            max_delta_time = delta_time_n > max_delta_time ? delta_time_n : max_delta_time;
+
+            last_time = curr_time;
+        }
+        else
+            last_time = curr_time;
+
+        if (n == 60000)
+        {
+            mean = sum / n;
+
+            variance = (sum_sq - sum * sum / n) / n;
+
+            while (std * std < variance)
+            {
+                std++;
+            }
+
+            printf("Minimum delta time %llu µs\tMaximum delta time %llu µs\nMean %llu µs\tStd %llu µs\n ",
+                   min_delta_time, max_delta_time, mean, std);
+
+            n = 0;
+            last_time = 0;
+            curr_time = 0;
+            delta_time_n = 0;
+            sum = 0;
+            sum_sq = 0;
+            mean = 0;
+            variance = 0;
+            std = 0;
+
+            min_delta_time = -1;
+            max_delta_time = 0;
+
+            max_count = 0;
         }
 
         if (current_state == SENDING_INIT_ACK)
