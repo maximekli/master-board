@@ -151,8 +151,8 @@ static void periodic_timer_callback(void *arg)
 
     ms_cpt++;
     max_count = wifi_eth_count > max_count ? wifi_eth_count : max_count;
-    if (ms_cpt % 2000 == 0)
-        printf("max_count = %d\n", max_count);
+    /*if (ms_cpt % 2000 == 0)
+        printf("max_count = %d\n", max_count);*/
 
     /* LEDs */
     bool blink = (ms_cpt % 1000) > 500;
@@ -501,8 +501,8 @@ void wifi_eth_receive_cb(uint8_t src_mac[6], uint8_t *data, int len)
                 std++;
             }
 
-            printf("Minimum delta time %llu µs\tMaximum delta time %llu µs\nMean %llu µs\tStd %llu µs\n ",
-                   min_delta_time, max_delta_time, mean, std);
+            printf("Minimum delta time %llu µs\tMaximum delta time %llu µs\nMean %llu µs\tStd %llu µs\nMax count %d\n",
+                   min_delta_time, max_delta_time, mean, std, max_count);
 
             n = 0;
             last_time = 0;
